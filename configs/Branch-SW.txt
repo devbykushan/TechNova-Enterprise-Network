@@ -1,0 +1,54 @@
+! ================================================================
+! Device: Branch-SW (Branch Office Switch - Cisco Catalyst 2960)
+! Role: Branch Office Access Switch
+! Features: VLAN 50, Port Security (Max 2, Shutdown), BPDU Guard,
+!           DHCP Snooping
+! ================================================================
+enable
+configure terminal
+hostname Branch-SW
+
+! 1. Create Branch VLAN
+vlan 50
+ name Branch-LAN
+exit
+
+! 2. Uplink to Branch-RTR (Gi0/1)
+interface GigabitEthernet0/1
+ description Uplink to Branch-RTR
+ switchport mode access
+ switchport access vlan 50
+ no shutdown
+ exit
+
+! 3. Access Ports for Branch Users (Fa0/1 - Fa0/20)
+interface range FastEthernet0/1 - 20
+ description Branch-User-Access
+ switchport mode access
+ switchport access vlan 50
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation shutdown
+ switchport port-security mac-address sticky
+ no shutdown
+ exit
+
+! 4. DHCP Snooping
+ip dhcp snooping
+ip dhcp snooping vlan 50
+no ip dhcp snooping information option
+
+! Trust the Router Uplink
+interface GigabitEthernet0/1
+ ip dhcp snooping trust
+ exit
+
+! 5. Disable Unused Ports
+interface range FastEthernet0/21 - 24, GigabitEthernet0/2
+ shutdown
+ exit
+
+end
+write memory

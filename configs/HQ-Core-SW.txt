@@ -1,0 +1,66 @@
+! ================================================================
+! Device: HQ-Core-SW (Cisco Catalyst 2960 / 3560)
+! Role: HQ Distribution / Core Switch
+! Features: VLAN Database, 802.1Q Trunks, Native VLAN 999,
+!           Management SVI, DHCP Snooping Trust, IGMP Snooping
+! ================================================================
+enable
+configure terminal
+hostname HQ-Core-SW
+
+! 1. Create VLANs
+vlan 10
+ name HR
+vlan 20
+ name Engineering
+vlan 30
+ name Sales
+vlan 40
+ name Servers
+vlan 99
+ name Management
+vlan 999
+ name Native
+exit
+
+! 2. Trunk Port to HQ-Edge-RTR (GigabitEthernet0/1)
+interface GigabitEthernet0/1
+ description Trunk Link to HQ-Edge-RTR
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,99,999
+ no shutdown
+ exit
+
+! 3. Trunk Downlinks to Floor Switches (Gi0/2 to F1, Gi0/3 to F2, Gi0/4 to F3)
+interface range GigabitEthernet0/2 - 4
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,20,30,40,99,999
+ no shutdown
+ exit
+
+! 4. Management SVI Configuration
+interface vlan 99
+ ip address 192.168.10.178 255.255.255.248
+ no shutdown
+ exit
+ip default-gateway 192.168.10.177
+
+! 5. DHCP Snooping Configuration
+ip dhcp snooping
+ip dhcp snooping vlan 10,20,30,40,99
+no ip dhcp snooping information option
+
+! Trust the Router Uplink
+interface GigabitEthernet0/1
+ ip dhcp snooping trust
+ exit
+
+! 6. IGMP Snooping (Explicitly verified)
+ip igmp snooping
+ip igmp snooping vlan 30
+ip igmp snooping vlan 40
+
+end
+write memory

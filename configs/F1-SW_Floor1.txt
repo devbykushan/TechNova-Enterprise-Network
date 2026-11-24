@@ -1,0 +1,68 @@
+! ================================================================
+! Device: F1-SW (Floor 1 Switch - Cisco Catalyst 2960)
+! Role: Floor 1 Access Switch (HR & Administration)
+! Features: VLAN 10, Port Security (Max 2, Shutdown), BPDU Guard,
+!           DHCP Snooping, Native VLAN 999 Trunk
+! ================================================================
+enable
+configure terminal
+hostname F1-SW
+
+! 1. Create VLANs
+vlan 10
+ name HR
+vlan 99
+ name Management
+vlan 999
+ name Native
+exit
+
+! 2. Trunk Uplink to HQ-Core-SW
+interface GigabitEthernet0/1
+ description Uplink to HQ-Core-SW
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 10,99,999
+ no shutdown
+ exit
+
+! 3. Management SVI
+interface vlan 99
+ ip address 192.168.10.179 255.255.255.248
+ no shutdown
+ exit
+ip default-gateway 192.168.10.177
+
+! 4. Access Ports for HR PCs & Printers (Fa0/1 - Fa0/20)
+interface range FastEthernet0/1 - 20
+ description HR-User-Access-Ports
+ switchport mode access
+ switchport access vlan 10
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ 
+ ! Layer 2 Port Security
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation shutdown
+ switchport port-security mac-address sticky
+ no shutdown
+ exit
+
+! 5. DHCP Snooping
+ip dhcp snooping
+ip dhcp snooping vlan 10,99
+no ip dhcp snooping information option
+
+! Trust the Core Switch Uplink
+interface GigabitEthernet0/1
+ ip dhcp snooping trust
+ exit
+
+! 6. Disable Unused Ports
+interface range FastEthernet0/21 - 24, GigabitEthernet0/2
+ shutdown
+ exit
+
+end
+write memory

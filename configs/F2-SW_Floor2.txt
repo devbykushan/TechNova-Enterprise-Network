@@ -1,0 +1,76 @@
+! ================================================================
+! Device: F2-SW (Floor 2 Switch - Cisco Catalyst 2960)
+! Role: Floor 2 Access Switch (Engineering & Server Farm)
+! Features: VLAN 20 & 40, Port Security (Max 2, Shutdown), BPDU Guard,
+!           DHCP Snooping, Native VLAN 999 Trunk
+! ================================================================
+enable
+configure terminal
+hostname F2-SW
+
+! 1. Create VLANs
+vlan 20
+ name Engineering
+vlan 40
+ name Servers
+vlan 99
+ name Management
+vlan 999
+ name Native
+exit
+
+! 2. Trunk Uplink to HQ-Core-SW
+interface GigabitEthernet0/1
+ description Uplink to HQ-Core-SW
+ switchport mode trunk
+ switchport trunk native vlan 999
+ switchport trunk allowed vlan 20,40,99,999
+ no shutdown
+ exit
+
+! 3. Management SVI
+interface vlan 99
+ ip address 192.168.10.180 255.255.255.248
+ no shutdown
+ exit
+ip default-gateway 192.168.10.177
+
+! 4. Access Ports for Engineering PCs (Fa0/1 - Fa0/20)
+interface range FastEthernet0/1 - 20
+ description Engineering-PCs
+ switchport mode access
+ switchport access vlan 20
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ switchport port-security
+ switchport port-security maximum 2
+ switchport port-security violation shutdown
+ switchport port-security mac-address sticky
+ no shutdown
+ exit
+
+! 5. Access Ports for Server Farm / Multicast Video Server (Fa0/21 - Fa0/22)
+interface range FastEthernet0/21 - 22
+ description Server-Farm-Ports
+ switchport mode access
+ switchport access vlan 40
+ spanning-tree portfast
+ no shutdown
+ exit
+
+! 6. DHCP Snooping
+ip dhcp snooping
+ip dhcp snooping vlan 20,40,99
+no ip dhcp snooping information option
+
+interface GigabitEthernet0/1
+ ip dhcp snooping trust
+ exit
+
+! 7. Disable Unused Ports
+interface range FastEthernet0/23 - 24, GigabitEthernet0/2
+ shutdown
+ exit
+
+end
+write memory

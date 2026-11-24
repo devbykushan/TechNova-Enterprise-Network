@@ -1,0 +1,57 @@
+! ================================================================
+! Device: Branch-RTR (Cisco 2911 / 4321)
+! Role: Remote Branch Office Gateway Router
+! Features: Dual-Stack, OSPFv2 (Area 0 WAN & Area 3 LAN),
+!           PIM-SM Client (RP pointing to HQ 1.1.1.1)
+! ================================================================
+enable
+configure terminal
+hostname Branch-RTR
+
+ipv6 unicast-routing
+ip multicast-routing
+
+! 1. WAN Point-to-Point Link to HQ
+interface GigabitEthernet0/0/1
+ description WAN Point-to-Point Link to HQ-Edge-RTR
+ ip address 192.168.10.186 255.255.255.252
+ ipv6 address 2001:DB8:ACAD:A001::2/64
+ ipv6 enable
+ ip pim sparse-mode
+ ip ospf message-digest-key 1 md5 TechNovaSecretPass
+ no shutdown
+ exit
+
+! 2. Branch LAN Gateway Interface
+interface GigabitEthernet0/0/0
+ description Gateway for Branch Office Users
+ ip address 192.168.10.129 255.255.255.224
+ ipv6 address 2001:DB8:ACAD:50::1/64
+ ipv6 enable
+ ip pim sparse-mode
+ ip igmp version 2
+ no shutdown
+ exit
+
+! 3. Loopback 0 Interface
+interface Loopback0
+ ip address 2.2.2.2 255.255.255.255
+ exit
+
+! 4. PIM RP Configuration (Points to HQ RP)
+ip pim rp-address 1.1.1.1
+
+! 5. OSPF Configuration
+router ospf 1
+ router-id 2.2.2.2
+ area 0 authentication message-digest
+ ! WAN Link in Backbone Area 0
+ network 192.168.10.184 0.0.0.3 area 0
+ ! Branch Office Subnet in Area 3
+ network 192.168.10.128 0.0.0.31 area 3
+ network 2.2.2.2 0.0.0.0 area 3
+ passive-interface GigabitEthernet0/0/0
+ exit
+
+end
+write memory

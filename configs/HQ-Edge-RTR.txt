@@ -1,0 +1,140 @@
+! ================================================================
+! Device: HQ-Edge-RTR (Cisco 2911 / 4321)
+! Role: HQ Core / Edge Router & Inter-VLAN Gateway
+! Features: Dual-Stack, PAT (NAT Overload), Multi-Area OSPF ABR,
+!           PIM-SM Rendezvous Point (RP), 802.1Q ROAS
+! ================================================================
+enable
+configure terminal
+hostname HQ-Edge-RTR
+
+! 1. Enable Global Routing Features
+ipv6 unicast-routing
+ip multicast-routing
+
+! 2. Trunk Sub-Interfaces for Inter-VLAN Routing (802.1Q)
+interface GigabitEthernet0/0/0
+ no ip address
+ no shutdown
+ exit
+
+! VLAN 10 - HR & Administration
+interface GigabitEthernet0/0/0.10
+ description Gateway for HR Department
+ encapsulation dot1Q 10
+ ip address 192.168.10.65 255.255.255.224
+ ipv6 address 2001:DB8:ACAD:10::1/64
+ ipv6 enable
+ ip pim sparse-mode
+ ip nat inside
+ exit
+
+! VLAN 20 - Engineering & IT
+interface GigabitEthernet0/0/0.20
+ description Gateway for Engineering Department
+ encapsulation dot1Q 20
+ ip address 192.168.10.1 255.255.255.192
+ ipv6 address 2001:DB8:ACAD:20::1/64
+ ipv6 enable
+ ip pim sparse-mode
+ ip nat inside
+ exit
+
+! VLAN 30 - Sales & Marketing (Multicast Receiver LAN)
+interface GigabitEthernet0/0/0.30
+ description Gateway for Sales Department
+ encapsulation dot1Q 30
+ ip address 192.168.10.97 255.255.255.224
+ ipv6 address 2001:DB8:ACAD:30::1/64
+ ipv6 enable
+ ip pim sparse-mode
+ ip igmp version 2
+ ip nat inside
+ exit
+
+! VLAN 40 - Server Farm (Multicast Source LAN)
+interface GigabitEthernet0/0/0.40
+ description Gateway for Server Farm
+ encapsulation dot1Q 40
+ ip address 192.168.10.161 255.255.255.240
+ ipv6 address 2001:DB8:ACAD:40::1/64
+ ipv6 enable
+ ip pim sparse-mode
+ ip nat inside
+ exit
+
+! VLAN 99 - Network Management
+interface GigabitEthernet0/0/0.99
+ description Gateway for Management VLAN
+ encapsulation dot1Q 99
+ ip address 192.168.10.177 255.255.255.248
+ ipv6 address 2001:DB8:ACAD:99::1/64
+ ipv6 enable
+ ip nat inside
+ exit
+
+! Native VLAN dummy sub-interface
+interface GigabitEthernet0/0/0.999
+ description Native VLAN
+ encapsulation dot1Q 999 native
+ exit
+
+! 3. WAN Point-to-Point Link to Branch-RTR
+interface GigabitEthernet0/0/1
+ description WAN Link to Branch-RTR
+ ip address 192.168.10.185 255.255.255.252
+ ipv6 address 2001:DB8:ACAD:A001::1/64
+ ipv6 enable
+ ip pim sparse-mode
+ ip ospf message-digest-key 1 md5 TechNovaSecretPass
+ no shutdown
+ exit
+
+! 4. Outside Interface to Simulated ISP
+interface GigabitEthernet0/0/2
+ description Public Internet Link
+ ip address 203.0.113.5 255.255.255.252
+ ip nat outside
+ no shutdown
+ exit
+
+! 5. Loopback 0 Interface (Router ID & RP)
+interface Loopback0
+ ip address 1.1.1.1 255.255.255.255
+ ip pim sparse-mode
+ exit
+
+! 6. Multicast PIM-SM Rendezvous Point (RP)
+ip pim rp-address 1.1.1.1
+
+! 7. Multi-Area OSPFv2 Routing Process
+router ospf 1
+ router-id 1.1.1.1
+ area 0 authentication message-digest
+ ! Backbone Area 0
+ network 1.1.1.1 0.0.0.0 area 0
+ network 192.168.10.184 0.0.0.3 area 0
+ ! Area 1 (Floor 1 & Floor 2)
+ network 192.168.10.64 0.0.0.31 area 1
+ network 192.168.10.0 0.0.0.63 area 1
+ ! Area 2 (Floor 3 & Server Farm)
+ network 192.168.10.96 0.0.0.31 area 2
+ network 192.168.10.160 0.0.0.15 area 2
+ network 192.168.10.176 0.0.0.7 area 2
+ ! Suppress OSPF hellos on user LANs
+ passive-interface GigabitEthernet0/0/0.10
+ passive-interface GigabitEthernet0/0/0.20
+ passive-interface GigabitEthernet0/0/0.30
+ passive-interface GigabitEthernet0/0/0.40
+ passive-interface GigabitEthernet0/0/0.99
+ exit
+
+! 8. Dynamic NAT with Overload (PAT)
+access-list 1 permit 192.168.10.0 0.0.0.255
+ip nat inside source list 1 interface GigabitEthernet0/0/2 overload
+
+! 9. Default Static Route to ISP
+ip route 0.0.0.0 0.0.0.0 203.0.113.6
+
+end
+write memory
