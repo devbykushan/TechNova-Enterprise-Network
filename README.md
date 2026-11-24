@@ -7,6 +7,8 @@ Enterprise network design and implementation project developed as part of the **
 ## 📌 Project Overview
 TechNova Solutions is a simulated enterprise corporate network designed and configured using **Cisco Packet Tracer**. The network architecture connects a three-floor corporate headquarters, a dedicated server farm, a simulated external ISP, and a remote branch office via WAN.
 
+![TechNova Solutions Network Topology](technova_packet_tracer_topology.png)
+
 ---
 
 ## 🚀 Key Technical Features
@@ -23,6 +25,8 @@ TechNova Solutions is a simulated enterprise corporate network designed and conf
 
 ## 📂 Repository Contents
 - `TechNova_MultiArea_Final.pkt` – Working Cisco Packet Tracer topology and configuration source file.
+- `configs/` – Router, switch, and end-device configuration scripts.
+- `technova_packet_tracer_topology.png` – Topology overview screenshot.
 
 ---
 
